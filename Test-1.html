@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Love Heart Background</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;background:#000;overflow:hidden;font-family:sans-serif;color:#fff;}
+
+  #starCanvas,#heartCanvas{position:fixed;inset:0;}
+  #starCanvas{z-index:0;}
+  #heartCanvas{z-index:1;}
+  .stage{position:relative;width:100%;height:100vh;overflow:hidden;z-index:2;}
+
+  .floating{
+    position:absolute;
+    transform:translateX(-50%);
+    white-space:nowrap;
+    pointer-events:none;
+    text-shadow:0 0 20px rgba(255,100,180,0.6);
+    color:#ffd6e6;
+    font-weight:600;
+    mix-blend-mode:screen;
+  }
+  .big{font-size:clamp(18px,5vw,36px);}
+  .med{font-size:clamp(14px,4vw,24px);color:#ffb6dd;}
+  .small{font-size:clamp(12px,3vw,18px);color:#ff9ccd;}
+
+  .particle{
+    position:absolute;
+    width:6px;height:6px;
+    border-radius:50%;
+    pointer-events:none;
+    background:#ff7ccf;
+    box-shadow:0 0 10px 4px rgba(255,120,210,0.4);
+  }
+  @media(max-width:520px){.particle{width:4px;height:4px;}}
+</style>
+</head>
+<body>
+<canvas id="starCanvas"></canvas>
+<canvas id="heartCanvas"></canvas>
+<div class="stage" id="stage"></div>
+
+<script>
+/* ---------- SAO BĂNG ---------- */
+const starCanvas=document.getElementById('starCanvas');
+const sctx=starCanvas.getContext('2d');
+let W=starCanvas.width=innerWidth;
+let H=starCanvas.height=innerHeight;
+let stars=[],shootingStars=[];
+for(let i=0;i<200;i++)stars.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.5+0.2,a:Math.random()*0.8});
+function drawStars(){
+  sctx.clearRect(0,0,W,H);
+  sctx.fillStyle="#fff";
+  for(const s of stars){
+    sctx.globalAlpha=s.a;
+    sctx.beginPath();
+    sctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+    sctx.fill();
+  }
+  sctx.globalAlpha=1;
+  for(let i=shootingStars.length-1;i>=0;i--){
+    const s=shootingStars[i];
+    s.x+=s.vx;s.y+=s.vy;s.life--;
+    sctx.globalAlpha=Math.max(0,s.life/50);
+    const grad=sctx.createLinearGradient(s.x,s.y,s.x-s.vx*5,s.y-s.vy*5);
+    grad.addColorStop(0,'rgba(255,255,255,1)');
+    grad.addColorStop(1,'rgba(255,150,200,0)');
+    sctx.strokeStyle=grad;
+    sctx.lineWidth=2;
+    sctx.beginPath();
+    sctx.moveTo(s.x,s.y);
+    sctx.lineTo(s.x-s.vx*5,s.y-s.vy*5);
+    sctx.stroke();
+    if(s.life<=0)shootingStars.splice(i,1);
+  }
+  if(Math.random()<0.02){
+    shootingStars.push({x:Math.random()*W,y:Math.random()*H*0.3,vx:-(4+Math.random()*4),vy:(4+Math.random()*3),life:50+Math.random()*30});
+  }
+}
+
+/* ---------- TRÁI TIM TỪ HẠT ---------- */
+const heartCanvas=document.getElementById('heartCanvas');
+const hctx=heartCanvas.getContext('2d');
+heartCanvas.width=W;
+heartCanvas.height=H;
+
+function heartShape(t){
+  const x=16*Math.pow(Math.sin(t),3);
+  const y=13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t);
+  return {x,y};
+}
+let heartParticles=[];
+function initHeart(){
+  heartParticles=[];
+  const scale=Math.min(W,H)/40;
+  for(let i=0;i<1000;i++){
+    const t=Math.random()*Math.PI*2;
+    const {x,y}=heartShape(t);
+    heartParticles.push({
+      baseX:x*scale,
+      baseY:-y*scale,
+      x:W/2+x*scale+(Math.random()-0.5)*5,
+      y:H/2-y*scale+(Math.random()-0.5)*5,
+      r:Math.random()*2+1,
+      a:Math.random()*0.6+0.4,
+      life:Math.random()*200+100
+    });
+  }
+}
+
+/* ---------- CHỮ "10A5" TỪ HẠT ---------- */
+let textParticles=[];
+function initTextParticles(){
+  textParticles=[];
+  const temp=document.createElement('canvas');
+  const tctx=temp.getContext('2d');
+  const text="10A5";
+  const fontSize=Math.min(W,H)/5;
+  tctx.font=`bold ${fontSize}px Poppins, sans-serif`;
+  const textWidth=tctx.measureText(text).width;
+  temp.width=textWidth+20;
+  temp.height=fontSize+20;
+  tctx.font=`bold ${fontSize}px Poppins, sans-serif`;
+  tctx.fillStyle="#fff";
+  tctx.textAlign="center";
+  tctx.textBaseline="middle";
+  tctx.fillText(text,temp.width/2,temp.height/2);
+  const imgData=tctx.getImageData(0,0,temp.width,temp.height);
+  const offsetX=W/2-temp.width/2;
+  const offsetY=H/2-temp.height/2;
+
+  for(let y=0;y<imgData.height;y+=4){
+    for(let x=0;x<imgData.width;x+=4){
+      const index=(y*imgData.width+x)*4;
+      const alpha=imgData.data[index+3];
+      if(alpha>150){
+        textParticles.push({
+          x:offsetX+x,
+          y:offsetY+y,
+          r:Math.random()*1.5+0.8,
+          a:Math.random()*0.6+0.4,
+          life:200+Math.random()*200
+        });
+      }
+    }
+  }
+}
+
+/* ---------- CHỮ RƠI ---------- */
+const stage=document.getElementById('stage');
+const messages=[
+  'tui yêu 10A5 💖',
+  '10A5 là tuyệt vời nhất 💕',
+  'Luôn hạnh phúc nhé 🧡',
+  'Mãi là công chúa của 10A5 ❤️',
+  'Cảm ơn vì đã đến với 10A5 💜',
+  '20/10 vui vẻ 💝'
+];
+function spawnMessage(text,opts={size:'med'}){
+  const el=document.createElement('div');
+  el.className='floating '+opts.size;
+  el.innerHTML=text;
+  stage.appendChild(el);
+  const maxX=window.innerWidth-40;
+  const startX=Math.random()*maxX*0.8+20;
+  const startY=-80-Math.random()*50;
+  const endY=window.innerHeight+100;
+  const duration=9000+Math.random()*4000;
+  el.style.left=startX+'px';
+  el.style.top=startY+'px';
+  let lastTrail=0;
+  const start=performance.now();
+  function frame(t){
+    const p=(t-start)/duration;
+    if(p>=1){el.remove();return;}
+    const y=startY+(endY-startY)*p;
+    el.style.top=y+'px';
+    if(t-lastTrail>100){lastTrail=t;spawnParticle(startX,y-20);}
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+function spawnParticle(x,y){
+  const p=document.createElement('div');
+  p.className='particle';
+  p.style.left=(x+Math.random()*40-20)+'px';
+  p.style.top=(y+Math.random()*10)+'px';
+  p.style.opacity='0.9';
+  stage.appendChild(p);
+  const lifetime=1200+Math.random()*500;
+  const start=performance.now();
+  function move(t){
+    const prog=(t-start)/lifetime;
+    if(prog>=1){p.remove();return;}
+    p.style.top=(y+prog*25)+'px';
+    p.style.opacity=(1-prog).toFixed(2);
+    requestAnimationFrame(move);
+  }
+  requestAnimationFrame(move);
+}
+function startFalling(){
+  setInterval(()=>{
+    const txt=messages[Math.floor(Math.random()*messages.length)];
+    const sizes=['small','med','big'];
+    spawnMessage(txt,{size:sizes[Math.floor(Math.random()*sizes.length)]});
+  },1600);
+}
+
+/* ---------- VẼ TỔNG ---------- */
+function drawHeart(){
+  hctx.clearRect(0,0,W,H);
+
+  // vẽ trái tim
+  for(const p of heartParticles){
+    hctx.globalAlpha=p.a;
+    hctx.fillStyle='#ff7ccf';
+    hctx.beginPath();
+    hctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+    hctx.fill();
+
+    p.x+=Math.sin(performance.now()/500+p.x)*0.05;
+    p.y+=Math.cos(performance.now()/600+p.y)*0.05;
+    p.life--;
+    if(p.life<=0 || Math.random()<0.002){
+      const t=Math.random()*Math.PI*2;
+      const s=Math.min(W,H)/40;
+      const {x,y}=heartShape(t);
+      p.x=W/2+x*s+(Math.random()-0.5)*3;
+      p.y=H/2-y*s+(Math.random()-0.5)*3;
+      p.life=200+Math.random()*200;
+      p.a=Math.random()*0.6+0.4;
+    }
+  }
+
+  // vẽ chữ "10A5"
+  for(const tp of textParticles){
+    hctx.globalAlpha=tp.a;
+    hctx.fillStyle='#ff7ccf';
+    hctx.beginPath();
+    hctx.arc(tp.x,tp.y,tp.r,0,Math.PI*2);
+    hctx.fill();
+
+    tp.life--;
+    if(tp.life<=0 || Math.random()<0.004){
+      tp.a=Math.random()*0.6+0.4;
+      tp.life=200+Math.random()*200;
+    }
+  }
+
+  hctx.globalAlpha=1;
+}
+
+/* ---------- CHẠY ---------- */
+window.addEventListener('resize',()=>{
+  W=starCanvas.width=heartCanvas.width=innerWidth;
+  H=starCanvas.height=heartCanvas.height=innerHeight;
+  initHeart();
+  initTextParticles();
+});
+initHeart();
+initTextParticles();
+startFalling();
+(function loop(){
+  drawStars();
+  drawHeart();
+  requestAnimationFrame(loop);
+})();
+</script>
+
